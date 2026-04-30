@@ -1,0 +1,285 @@
+// prisma/schema.prisma
+// Database Architecture - Prisma Translation Layer
+// Do NOT use Prisma Migrate. This schema operates strictly in a database-first paradigm.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRoleEnum {
+  ADMIN
+  TENANT
+  DEVELOPER
+
+  @@map("user_role_enum")
+}
+
+enum UserStatusEnum {
+  ACTIVE
+  PENDING
+  SUSPENDED
+
+  @@map("user_status_enum")
+}
+
+model Country {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code       String    @db.VarChar(3)
+  name       String    @db.VarChar(255)
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
+  
+  states     State[]
+
+  // DO NOT convert to @unique.
+  // Real uniqueness is enforced by PostgreSQL partial unique indexes:
+  // WHERE deleted_at IS NULL
+  @@index([code], name: "uq_country_code")
+  @@index([name], name: "uq_country_name")
+  @@index([name], name: "idx_country_name")
+  @@map("country")
+}
+
+model State {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  countryId       String            @map("country_id") @db.Uuid
+  code            String            @db.VarChar(50)
+  name            String            @db.VarChar(255)
+  region          String?           @db.VarChar(100)
+  isActive        Boolean           @default(true) @map("is_active")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime          @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz
+  
+  country         Country           @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  districts       District[]
+  userStateAccess UserStateAccess[]
+
+  // DO NOT convert to @unique.
+  // Real uniqueness is enforced by PostgreSQL partial unique indexes:
+  // WHERE deleted_at IS NULL
+  @@index([countryId, code], name: "uq_state_country_code")
+  @@index([countryId], name: "idx_state_country_id")
+  @@index([name], name: "idx_state_name")
+  @@map("state")
+}
+
+model District {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stateId      String        @map("state_id") @db.Uuid
+  code         String        @db.VarChar(50)
+  name         String        @db.VarChar(255)
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime      @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime?     @map("deleted_at") @db.Timestamptz
+  
+  state        State         @relation(fields: [stateId], references: [id], onDelete: Restrict)
+  subDistricts SubDistrict[]
+
+  // DO NOT convert to @unique.
+  // Real uniqueness is enforced by PostgreSQL partial unique indexes:
+  // WHERE deleted_at IS NULL
+  @@index([stateId, code], name: "uq_district_state_code")
+  @@index([stateId], name: "idx_district_state_id")
+  @@index([name], name: "idx_district_name")
+  @@map("district")
+}
+
+model SubDistrict {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  districtId String    @map("district_id") @db.Uuid
+  code       String    @db.VarChar(50)
+  name       String    @db.VarChar(255)
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz
+  
+  district   District  @relation(fields: [districtId], references: [id], onDelete: Restrict)
+  villages   Village[]
+
+  // DO NOT convert to @unique.
+  // Real uniqueness is enforced by PostgreSQL partial unique indexes:
+  // WHERE deleted_at IS NULL
+  @@index([districtId, code], name: "uq_sub_district_district_code")
+  @@index([districtId], name: "idx_sub_district_district_id")
+  @@index([name], name: "idx_sub_district_name")
+  @@map("sub_district")
+}
+
+model Village {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subDistrictId String         @map("sub_district_id") @db.Uuid
+  code          String         @db.VarChar(50)
+  name          String         @db.VarChar(255)
+  population    Int?
+  pinCode       String?        @map("pin_code") @db.VarChar(10)
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz
+  
+  subDistrict   SubDistrict    @relation(fields: [subDistrictId], references: [id], onDelete: Restrict)
+  villageSearch VillageSearch?
+
+  // DO NOT convert to @unique.
+  // Real uniqueness is enforced by PostgreSQL partial unique indexes:
+  // WHERE deleted_at IS NULL
+  @@index([subDistrictId, code], name: "uq_village_sub_district_code")
+  @@index([subDistrictId, name], name: "idx_village_sub_district_active")
+  @@index([code], name: "idx_village_code")
+  @@index([name], name: "idx_village_name")
+  @@index([pinCode], name: "idx_village_pin_code")
+  @@map("village")
+}
+
+model VillageSearch {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  villageId       String   @unique @map("village_id") @db.Uuid
+  villageName     String   @map("village_name") @db.VarChar(255)
+  subDistrictName String   @map("sub_district_name") @db.VarChar(255)
+  districtName    String   @map("district_name") @db.VarChar(255)
+  stateName       String   @map("state_name") @db.VarChar(255)
+  searchText      String   @map("search_text") @db.Text
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  
+  village         Village  @relation(fields: [villageId], references: [id], onDelete: Cascade)
+
+  @@index([searchText], name: "idx_village_search_trgm")
+  @@map("village_search")
+}
+
+model SubscriptionPlan {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                String    @db.VarChar(50)
+  name                String    @db.VarChar(255)
+  rateLimitPerMin     Int       @map("rate_limit_per_min")
+  maxRequestsPerMonth Int       @map("max_requests_per_month")
+  maxAllowedStates    Int       @map("max_allowed_states")
+  price               Decimal   @db.Decimal(10, 2)
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz
+  
+  users               User[]
+
+  // DO NOT convert to @unique.
+  // Real uniqueness is enforced by PostgreSQL partial unique indexes:
+  // WHERE deleted_at IS NULL
+  @@index([code], name: "uq_subscription_plan_code")
+  @@map("subscription_plan")
+}
+
+model User {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscriptionPlanId String           @map("subscription_plan_id") @db.Uuid
+  email              String           @db.VarChar(255)
+  passwordHash       String           @map("password_hash") @db.VarChar(255)
+  firstName          String           @map("first_name") @db.VarChar(100)
+  lastName           String           @map("last_name") @db.VarChar(100)
+  companyName        String?          @map("company_name") @db.VarChar(255)
+  role               UserRoleEnum     @default(TENANT)
+  status             UserStatusEnum   @default(PENDING)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime         @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt          DateTime?        @map("deleted_at") @db.Timestamptz
+  
+  subscriptionPlan   SubscriptionPlan @relation(fields: [subscriptionPlanId], references: [id], onDelete: Restrict)
+  apiKeys            ApiKey[]
+  userStateAccesses  UserStateAccess[] @relation("UserAccess")
+  grantedAccesses    UserStateAccess[] @relation("GrantedBy")
+  apiLogs            ApiLog[]
+
+  // DO NOT convert to @unique.
+  // Real uniqueness is enforced by PostgreSQL partial unique indexes:
+  // WHERE deleted_at IS NULL
+  @@index([email], name: "uq_user_email")
+  @@index([subscriptionPlanId], name: "idx_user_subscription_plan_id")
+  @@map("user")
+}
+
+model ApiKey {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  name        String    @db.VarChar(255)
+  keyPrefix   String    @map("key_prefix") @db.VarChar(15)
+  keyHash     String    @map("key_hash") @db.VarChar(64)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz
+  lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  apiLogs     ApiLog[]
+
+  // DO NOT convert to @unique.
+  // Real uniqueness is enforced by PostgreSQL partial unique indexes:
+  // WHERE deleted_at IS NULL
+  @@index([keyHash], name: "uq_api_key_hash")
+  @@index([userId], name: "idx_api_key_user_active")
+  @@map("api_key")
+}
+
+model UserStateAccess {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  stateId   String    @map("state_id") @db.Uuid
+  grantedBy String?   @map("granted_by") @db.Uuid
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  user      User      @relation("UserAccess", fields: [userId], references: [id], onDelete: Restrict)
+  state     State     @relation(fields: [stateId], references: [id], onDelete: Restrict)
+  granter   User?     @relation("GrantedBy", fields: [grantedBy], references: [id], onDelete: SetNull)
+
+  // DO NOT convert to @unique.
+  // Real uniqueness is enforced by PostgreSQL partial unique indexes:
+  // WHERE deleted_at IS NULL
+  @@index([userId, stateId], name: "uq_user_state_access")
+  @@index([userId], name: "idx_user_state_access_user_id")
+  @@index([stateId], name: "idx_user_state_access_state_id")
+  @@map("user_state_access")
+}
+
+// Append-only audit table.
+// Never use update/delete through Prisma.
+// Insert + read only.
+model ApiLog {
+  id             String   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  apiKeyId       String?  @map("api_key_id") @db.Uuid
+  endpoint       String   @db.VarChar(255)
+  
+  // Expected values: GET POST PUT PATCH DELETE
+  method         String   @db.VarChar(10)
+  
+  statusCode     Int      @map("status_code")
+  responseTimeMs Int      @map("response_time_ms")
+  ipAddress      String?  @map("ip_address") @db.Inet
+  userAgent      String?  @map("user_agent") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  apiKey         ApiKey?  @relation(fields: [apiKeyId], references: [id], onDelete: Restrict)
+
+  // Partitioned tables require the partition key to be part of the PK
+  @@id([id, createdAt])
+  @@index([userId], name: "idx_api_log_user_id")
+  @@index([apiKeyId], name: "idx_api_log_api_key_id")
+  @@index([createdAt], name: "idx_api_log_created_at")
+  @@map("api_log")
+}
