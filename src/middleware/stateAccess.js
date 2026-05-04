@@ -23,7 +23,12 @@ const stateAccessMiddleware = async (req, res, next) => {
     // We cache state mappings globally because geographical codes rarely change.
     // This removes a blocking DB query from the critical request path.
     const stateCodeKey = `state:code:${normalizedCode}`;
-    let stateId = await redis.get(stateCodeKey);
+    let stateId = null;
+    try {
+      stateId = await redis.get(stateCodeKey);
+    } catch (error) {
+      console.error('[StateAccessMiddleware] Redis state cache read failed:', error);
+    }
 
     if (!stateId) {
       // Cache miss - fallback to DB
@@ -50,7 +55,12 @@ const stateAccessMiddleware = async (req, res, next) => {
     // -------------------------------------------------------------------------
     const accessKey = `access:user:${userId}:states`;
     let allowedStates = null;
-    const cachedAccess = await redis.get(accessKey);
+    let cachedAccess = null;
+    try {
+      cachedAccess = await redis.get(accessKey);
+    } catch (error) {
+      console.error('[StateAccessMiddleware] Redis access cache read failed:', error);
+    }
 
     if (cachedAccess) {
       // Upstash parses JSON automatically or returns a string depending on client version
@@ -70,7 +80,9 @@ const stateAccessMiddleware = async (req, res, next) => {
       allowedStates = accessGrants.map(grant => grant.stateId);
 
       // Store in Redis with a short TTL (5 minutes)
-      await redis.set(accessKey, JSON.stringify(allowedStates), { ex: ACCESS_CACHE_TTL });
+      redis.set(accessKey, JSON.stringify(allowedStates), { ex: ACCESS_CACHE_TTL }).catch((error) => {
+        console.error('[StateAccessMiddleware] Redis access cache write failed:', error);
+      });
     }
 
     // -------------------------------------------------------------------------

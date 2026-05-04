@@ -35,8 +35,13 @@ const authMiddleware = async (req, res, next) => {
     const cacheKey = `auth:key:${apiKey}`;
     let keyData = null;
 
-    // 3. Try fetching from Redis cache
-    const cached = await redis.get(cacheKey);
+    // 3. Try fetching from Redis cache. Redis outages must not block DB-backed auth.
+    let cached = null;
+    try {
+      cached = await redis.get(cacheKey);
+    } catch (error) {
+      console.error('[AuthMiddleware] Redis cache read failed:', error);
+    }
 
     if (cached) {
       // Upstash returns object directly if JSON, or string
@@ -81,7 +86,9 @@ const authMiddleware = async (req, res, next) => {
         plan: dbKey.user.subscriptionPlan,
       };
 
-      await redis.set(cacheKey, JSON.stringify(keyData), { ex: REDIS_TTL_SECONDS });
+      redis.set(cacheKey, JSON.stringify(keyData), { ex: REDIS_TTL_SECONDS }).catch((error) => {
+        console.error('[AuthMiddleware] Redis cache write failed:', error);
+      });
     }
 
     // 5. Hash the secret

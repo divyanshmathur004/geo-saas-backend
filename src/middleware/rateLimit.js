@@ -13,7 +13,14 @@ const rateLimitMiddleware = async (req, res, next) => {
     const rlKey = `rate_limit:${apiKeyId}:${currentMinute}`;
     
     // O(1) atomic increment to avoid race conditions under high concurrency
-    const currentRequests = await redis.incr(rlKey);
+    let currentRequests;
+    try {
+      currentRequests = await redis.incr(rlKey);
+    } catch (error) {
+      console.error('[RateLimitMiddleware] Redis rate limit unavailable:', error);
+      req.context.usage = null;
+      return next();
+    }
     
     // Set 60-second TTL only on the first request of the minute to save Redis commands
     if (currentRequests === 1) {
@@ -33,7 +40,14 @@ const rateLimitMiddleware = async (req, res, next) => {
     const quotaKey = `usage:${userId}:${yearMonth}`;
 
     // O(1) read
-    const currentUsageVal = await redis.get(quotaKey);
+    let currentUsageVal;
+    try {
+      currentUsageVal = await redis.get(quotaKey);
+    } catch (error) {
+      console.error('[RateLimitMiddleware] Redis quota unavailable:', error);
+      req.context.usage = null;
+      return next();
+    }
     const currentUsage = currentUsageVal ? parseInt(currentUsageVal, 10) : 0;
     const maxQuota = plan.maxRequestsPerMonth;
 
