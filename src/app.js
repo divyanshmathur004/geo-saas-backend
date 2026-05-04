@@ -1,5 +1,6 @@
 const express = require('express');
 const errorHandler = require('./middleware/errorHandler');
+const searchRoutes = require('./routes/search');
 const ApiResponse = require('./utils/apiResponse');
 
 const app = express();
@@ -12,8 +13,9 @@ app.get('/health', (req, res) => {
   return ApiResponse.success(res, { status: 'healthy', timestamp: new Date() }, 'API is running');
 });
 
-// Phase 3B: Routes will be mounted here
-// app.use('/api/v1', ...);
+// API Routes
+app.use('/api/search', searchRoutes);
+app.use('/api/v1/search', searchRoutes);
 
 // 404 Handler
 app.use((req, res) => {

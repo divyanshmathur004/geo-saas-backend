@@ -14,12 +14,14 @@ const router = express.Router();
  * 3. State Access (Redis-backed 403 authorization)
  * 4. Controller (Fuzzy pg_trgm Search)
  */
-router.get(
-  '/villages',
+const searchPipeline = [
   authMiddleware,
   rateLimitMiddleware,
   stateAccessMiddleware,
   SearchController.searchVillages
-);
+];
+
+router.get('/', searchPipeline);
+router.get('/villages', searchPipeline);
 
 module.exports = router;
