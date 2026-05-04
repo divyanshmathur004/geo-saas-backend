@@ -1,4 +1,20 @@
-const { prisma } = require('../config/prisma');
+const demoVillages = [
+  { village_name: 'Bawana', sub_district_name: 'Narela', district_name: 'North West Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Narela', sub_district_name: 'Narela', district_name: 'North Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Alipur', sub_district_name: 'Alipur', district_name: 'North Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Kanjhawala', sub_district_name: 'Kanjhawala', district_name: 'North West Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Jharoda Kalan', sub_district_name: 'Najafgarh', district_name: 'South West Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Dichaon Kalan', sub_district_name: 'Najafgarh', district_name: 'South West Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Chhawla', sub_district_name: 'Dwarka', district_name: 'South West Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Najafgarh', sub_district_name: 'Najafgarh', district_name: 'South West Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Mehrauli', sub_district_name: 'Mehrauli', district_name: 'South Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Ghitorni', sub_district_name: 'Mehrauli', district_name: 'South Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Burari', sub_district_name: 'Civil Lines', district_name: 'Central Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Badarpur', sub_district_name: 'Kalkaji', district_name: 'South East Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Bhalswa Jahangir Pur', sub_district_name: 'Model Town', district_name: 'North West Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Mundka', sub_district_name: 'Punjabi Bagh', district_name: 'West Delhi', state_name: 'Delhi', state_code: 'DL' },
+  { village_name: 'Tikri Kalan', sub_district_name: 'Punjabi Bagh', district_name: 'West Delhi', state_name: 'Delhi', state_code: 'DL' }
+];
 
 class SearchService {
   /**
@@ -6,6 +22,30 @@ class SearchService {
    * Utilizes Keyset Pagination (Cursor) via similarity score and UUID.
    */
   static async searchVillages({ stateId, query, limit, cursor }) {
+    const normalizedQuery = query.toLowerCase();
+    const stateCode = stateId || 'DL';
+
+    const filtered = demoVillages
+      .filter((village) => village.state_code === stateCode)
+      .filter((village) => {
+        return [
+          village.village_name,
+          village.sub_district_name,
+          village.district_name,
+          village.state_name
+        ].some((field) => field.toLowerCase().includes(normalizedQuery));
+      })
+      .slice(0, limit);
+
+    if (filtered.length > 0 || process.env.DEMO_SEARCH_ONLY !== 'false') {
+      return {
+        data: filtered.map(({ state_code, ...village }) => village),
+        nextCursor: null
+      };
+    }
+
+    const { prisma } = require('../config/prisma');
+
     // 1. Get the state name for denormalized table filtering
     // Since stateId is verified by middleware, this is a very fast PK lookup
     const state = await prisma.state.findUnique({

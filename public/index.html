@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Village Search Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, sans-serif;
+        color: #17202a;
+        background: #f4f7f8;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px;
+      }
+
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin: 0 0 18px;
+        font-size: 32px;
+      }
+
+      .search {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      input {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 14px;
+        border: 1px solid #b8c2c8;
+        border-radius: 6px;
+        font-size: 16px;
+      }
+
+      button {
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 6px;
+        background: #126b58;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      li {
+        background: white;
+        border: 1px solid #d9e0e3;
+        border-radius: 6px;
+        padding: 14px 16px;
+        margin-bottom: 10px;
+      }
+
+      .name {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .meta {
+        color: #56636b;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Village Search Demo</h1>
+      <div class="search">
+        <input id="query" value="delhi" placeholder="Search village">
+        <button id="searchButton">Search</button>
+      </div>
+      <ul id="results"></ul>
+    </main>
+
+    <script>
+      const queryInput = document.getElementById('query');
+      const button = document.getElementById('searchButton');
+      const results = document.getElementById('results');
+
+      async function searchVillages() {
+        const q = encodeURIComponent(queryInput.value || 'delhi');
+        results.innerHTML = '<li>Loading...</li>';
+
+        const response = await fetch(`/api/search?q=${q}&state_code=DL`);
+        const payload = await response.json();
+
+        if (!payload.success || !payload.data.length) {
+          results.innerHTML = '<li>No villages found.</li>';
+          return;
+        }
+
+        results.innerHTML = payload.data.map((village) => `
+          <li>
+            <div class="name">${village.village_name}</div>
+            <div class="meta">${village.sub_district_name}, ${village.district_name}, ${village.state_name}</div>
+          </li>
+        `).join('');
+      }
+
+      button.addEventListener('click', searchVillages);
+      queryInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') searchVillages();
+      });
+
+      searchVillages();
+    </script>
+  </body>
+</html>
