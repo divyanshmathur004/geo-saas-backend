@@ -27,6 +27,13 @@
         font-size: 32px;
       }
 
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
       .search {
         display: flex;
         gap: 10px;
@@ -74,13 +81,30 @@
       .meta {
         color: #56636b;
       }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 20px;
+        }
+
+        .controls,
+        .search {
+          grid-template-columns: 1fr;
+          flex-direction: column;
+        }
+      }
     </style>
   </head>
   <body>
     <main>
       <h1>Village Search Demo</h1>
+      <div class="controls">
+        <input id="apiKey" placeholder="API key">
+        <input id="apiSecret" placeholder="API secret" type="password">
+      </div>
       <div class="search">
-        <input id="query" value="delhi" placeholder="Search village">
+        <input id="query" value="jodhpur" placeholder="Search village">
+        <input id="stateCode" value="RJ" placeholder="State code">
         <button id="searchButton">Search</button>
       </div>
       <ul id="results"></ul>
@@ -88,18 +112,27 @@
 
     <script>
       const queryInput = document.getElementById('query');
+      const stateCodeInput = document.getElementById('stateCode');
+      const apiKeyInput = document.getElementById('apiKey');
+      const apiSecretInput = document.getElementById('apiSecret');
       const button = document.getElementById('searchButton');
       const results = document.getElementById('results');
 
       async function searchVillages() {
-        const q = encodeURIComponent(queryInput.value || 'delhi');
+        const q = encodeURIComponent(queryInput.value || 'jodhpur');
+        const stateCode = encodeURIComponent((stateCodeInput.value || 'RJ').toUpperCase());
         results.innerHTML = '<li>Loading...</li>';
 
-        const response = await fetch(`/api/search?q=${q}&state_code=DL`);
+        const response = await fetch(`/api/search?q=${q}&state_code=${stateCode}`, {
+          headers: {
+            'X-API-Key': apiKeyInput.value,
+            'X-API-Secret': apiSecretInput.value
+          }
+        });
         const payload = await response.json();
 
         if (!payload.success || !payload.data.length) {
-          results.innerHTML = '<li>No villages found.</li>';
+          results.innerHTML = `<li>${payload.message || 'No villages found.'}</li>`;
           return;
         }
 
@@ -116,7 +149,7 @@
         if (event.key === 'Enter') searchVillages();
       });
 
-      searchVillages();
+      results.innerHTML = '<li>Enter API credentials, then search.</li>';
     </script>
   </body>
 </html>

@@ -4,11 +4,11 @@ const ApiResponse = require('../utils/apiResponse');
 class SearchController {
   static async searchVillages(req, res) {
     try {
-      const { q, limit, cursor, state_code } = req.query;
-      const stateId = (state_code || 'DL').toUpperCase().trim();
+      const { q, limit, cursor } = req.query;
+      const { stateId } = req.context;
 
-      if (!q || q.trim().length < 1) {
-        return ApiResponse.error(res, 'Search query is required', 400);
+      if (!q || q.trim().length < 3) {
+        return ApiResponse.error(res, 'Search query must be at least 3 characters', 400);
       }
 
       // 2. Validate and Cap Limit (Max 50 to prevent huge JSON payloads and CPU strain)
